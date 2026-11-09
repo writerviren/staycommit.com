@@ -771,45 +771,9 @@
 
         let currentUser = JSON.parse(localStorage.getItem('cc_current_user')) || users[0];
 
-        let resolutions = JSON.parse(localStorage.getItem('cc_resolutions')) || [
-            {
-                id: 'res_1',
-                creatorId: 'user_1',
-                creatorName: 'Alex Turner',
-                title: 'Lose 10 kg in 60 days',
-                category: 'Health & Fitness',
-                description: 'Commitment to strict caloric deficit, 10k daily steps, and eliminating sugar for 60 consecutive days.',
-                startDate: '2026-08-01',
-                deadline: '2026-10-01',
-                reportingFrequency: 'everyday',
-                emailReminders: true,
-                startingMetric: '82 kg',
-                targetMetric: '72 kg',
-                personalWhy: 'I want to regain my energy and build sustainable discipline before my family reunion.',
-                coverImage: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800&auto=format&fit=crop&q=60',
-                participantLimit: 5,
-                participants: ['user_1', 'user_2', 'user_3'],
-                participantJoinDates: { 'user_1': '2026-08-01', 'user_2': '2026-08-05', 'user_3': '2026-08-10' },
-                participantStatuses: { 'user_1': 'completed', 'user_2': 'ongoing', 'user_3': 'failed' },
-                participantFrequencies: { 'user_1': 'everyday', 'user_2': 'everyday', 'user_3': 'everyday' },
-                participantReminders: { 'user_1': true, 'user_2': true, 'user_3': true },
-                participantPrivateNotes: { 'user_1': 'Consistency and cutting sugar entirely made all the difference.' },
-                participantHistoricalSnapshots: {
-                    'user_1': { id: 'res_1', title: 'Lose 10 kg in 60 days', category: 'Health & Fitness', description: 'Commitment to strict caloric deficit...', deadline: '2026-10-01', coverImage: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800&auto=format&fit=crop&q=60', status: 'completed' },
-                    'user_3': { id: 'res_1', title: 'Lose 10 kg in 60 days', category: 'Health & Fitness', description: 'Commitment to strict caloric deficit...', deadline: '2026-10-01', coverImage: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=800&auto=format&fit=crop&q=60', status: 'failed' }
-                },
-                blockedUsers: [],
-                status: 'ongoing',
-                isHidden: false,
-                isPodHiddenOnly: false,
-                createdAt: '2026-08-01T10:00:00Z',
-                updates: [
-                    { id: 'up_101', userId: 'user_1', userName: 'Alex Turner', date: '2026-08-01', description: 'Started strong!', numericalProgress: '82 kg', obstacles: '', proofImage: '' },
-                    { id: 'up_102', userId: 'user_1', userName: 'Alex Turner', date: '2026-08-02', description: 'Completed 10k steps.', numericalProgress: '81.8 kg', obstacles: '', proofImage: '' }
-                ],
-                comments: []
-            }
-        ];
+        // Demo accounts are retained, but demo-created pods are no longer seeded.
+        // Existing demo-created resolutions are removed by purgeDemoUserResolutions().
+        let resolutions = JSON.parse(localStorage.getItem('cc_resolutions')) || [];
 
         let notifications = JSON.parse(localStorage.getItem('cc_notifications')) || [];
         let currentView = 'explore';
@@ -833,10 +797,11 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             ensureDemoAccountRegistry();
+            purgeDemoUserResolutions();
             renderDemoAccountPicker();
             migrateResolutionCovers();
             migrateResolutionText();
-            migrateDemoContentQuality();
+            // Demo-content rewriting is intentionally disabled; only demo-created pods are purged.
             checkUrlRefAndScheduleReminders();
             renderAuthNav();
             renderExploreFeed();
@@ -894,6 +859,40 @@
                 usedEmails.add(email);
             });
             saveToStorage();
+        }
+
+        // Remove pods authored by the built-in/recovered demo accounts while keeping
+        // every user record and the current login intact. Real sign-ups use a 13+ digit
+        // timestamp suffix (user_<timestamp>), so those users' resolutions are retained.
+        function purgeDemoUserResolutions() {
+            const VERSION = 'staycommit_remove_demo_user_resolutions_v1';
+            if (localStorage.getItem(VERSION) === 'done') return;
+
+            const demoUserIds = new Set((Array.isArray(users) ? users : [])
+                .filter(user => user && user.id)
+                .filter(user => {
+                    const id = String(user.id);
+                    const email = String(user.email || '').toLowerCase();
+                    return id === 'user_google_demo' || id === 'user_fb_demo' ||
+                        id.startsWith('demo_user_') || email.endsWith('@staycommit.local') ||
+                        (/^user_\d+$/.test(id) && !/^user_\d{13,}$/.test(id));
+                })
+                .map(user => String(user.id)));
+
+            const previousResolutions = Array.isArray(resolutions) ? resolutions : [];
+            const removedIds = new Set(previousResolutions
+                .filter(res => res && demoUserIds.has(String(res.creatorId || '')))
+                .map(res => String(res.id)));
+            resolutions = previousResolutions.filter(res =>
+                !res || !demoUserIds.has(String(res.creatorId || ''))
+            );
+            if (removedIds.size && Array.isArray(notifications)) {
+                notifications = notifications.filter(n => !n || !removedIds.has(String(n.targetResId || '')));
+            }
+            // Persist the pruned resolution list without touching cc_users/current user.
+            localStorage.setItem('cc_resolutions', JSON.stringify(resolutions));
+            if (Array.isArray(notifications)) localStorage.setItem('cc_notifications', JSON.stringify(notifications));
+            localStorage.setItem(VERSION, 'done');
         }
 
         function escapeDemoHtml(value) {
