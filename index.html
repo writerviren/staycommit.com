@@ -836,6 +836,7 @@
             renderDemoAccountPicker();
             migrateResolutionCovers();
             migrateResolutionText();
+            migrateDemoContentQuality();
             checkUrlRefAndScheduleReminders();
             renderAuthNav();
             renderExploreFeed();
@@ -1104,6 +1105,191 @@
             if (/paint|draw|music|creative|write|photograph|art/.test(text)) return 'Make room for regular creative practice, complete small pieces of work, and build skill through experimentation and consistent effort.';
             if (/travel|hike|walk|nature|outdoor|cycling/.test(text)) return 'Spend more intentional time outdoors through planned activities, gradual progress, and a consistent routine that makes movement part of everyday life.';
             return 'Turn this goal into a consistent routine with clear actions, measurable progress, and regular check-ins throughout the commitment period.';
+        }
+
+
+        // One-time cleanup for the locally stored demo community. This only
+        // changes repeated demo-style copy; unique user-written text is kept.
+        function migrateDemoContentQuality() {
+            if (!Array.isArray(resolutions) || !resolutions.length) return;
+            let changed = false;
+            const clean = value => String(value || '').toLowerCase()
+                .replace(/\b\d+\s*[- ]?day(?:s)?\b/g, '')
+                .replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
+            const hash = value => {
+                let h = 2166136261;
+                for (const ch of String(value || '')) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+                return (h >>> 0);
+            };
+            const categoryText = res => `${res.category || ''} ${res.title || ''}`.toLowerCase();
+            const activityFor = res => {
+                const t = categoryText(res);
+                if (/run|marathon|walk|step|cycle|cardio/.test(t)) return 'training';
+                if (/strength|gym|workout|muscle|fitness|weight/.test(t)) return 'strength training';
+                if (/read|book|study|exam|course|language|learn/.test(t)) return 'learning';
+                if (/save|budget|debt|invest|finance|trading/.test(t)) return 'financial planning';
+                if (/cook|meal|nutrition|diet|water|eat/.test(t)) return 'nutrition';
+                if (/meditat|mindful|sleep|journal|stress|gratitude/.test(t)) return 'wellness';
+                if (/write|paint|draw|music|photo|creative|art/.test(t)) return 'creative practice';
+                if (/career|job|business|work|skill/.test(t)) return 'career development';
+                if (/family|parent|partner|relationship/.test(t)) return 'relationship building';
+                if (/quit|smok|sobriety|recovery|addict/.test(t)) return 'recovery';
+                return 'daily practice';
+            };
+            const titleFocus = {
+                training: ['with a steady weekly training plan','through gradual distance building','with recovery days built into the routine','using measurable weekly milestones','with consistent morning sessions','by improving technique before intensity'],
+                'strength training': ['with a progressive strength routine','by improving form and consistency','with a balanced full-body schedule','through gradual increases in training volume','with recovery treated as part of the plan','by tracking each workout'],
+                learning: ['through focused study blocks','with weekly revision sessions','by building a daily reading routine','through practical exercises and review','with a clear weekly learning target','by improving consistency one session at a time'],
+                'financial planning': ['with a weekly budget review','by tracking spending and savings','through a consistent money check-in','with smaller, measurable weekly targets','by reducing avoidable expenses','with a structured monthly review'],
+                nutrition: ['through simple meal planning','with balanced weekday meals','by preparing food ahead of busy days','with a consistent hydration routine','by tracking habits rather than quick fixes','through practical changes to everyday meals'],
+                wellness: ['with a calmer evening routine','through short daily reflection sessions','by protecting time for rest','with a consistent morning reset','through manageable daily check-ins','by making recovery a regular priority'],
+                'creative practice': ['through short, regular practice sessions','by finishing one small piece at a time','with weekly creative milestones','through experimentation and review','by protecting uninterrupted practice time','with a consistent project routine'],
+                'career development': ['through focused skill-building sessions','with weekly career milestones','by protecting deep-work time','through practical portfolio work','with a structured professional learning plan','by reviewing progress every week'],
+                'relationship building': ['through intentional time together','with regular conversations and shared activities','by making small daily gestures consistent','through planned, distraction-free time','with weekly moments of connection','by being more present in everyday routines'],
+                recovery: ['with a steady daily support routine','by identifying triggers and planning alternatives','through consistent check-ins and reflection','with practical steps for difficult days','by strengthening healthy replacement habits','with support and accountability built in'],
+                'daily practice': ['with a realistic weekly routine','through small measurable steps','by protecting focused time each day','with regular progress reviews','through consistent habits and reflection','with manageable weekly milestones']
+            };
+            const descriptions = {
+                training: ['Build endurance gradually with planned sessions, sensible recovery and a weekly review of distance or time.','Follow a repeatable movement schedule, record each session and adjust effort to stay consistent without rushing progress.','Make training sustainable by balancing regular sessions, recovery and small improvements in performance.'],
+                'strength training': ['Develop strength through scheduled workouts, careful technique and gradual increases that can be tracked from week to week.','Build a reliable resistance-training routine with planned sessions, recovery and attention to form.','Improve strength steadily by recording workouts and progressing at a pace that supports consistency.'],
+                learning: ['Make measurable progress with focused study sessions, active practice and a weekly review of topics covered.','Build a dependable learning habit by setting session goals and revisiting material regularly.','Use short, structured practice blocks to improve understanding and track what has been completed.'],
+                'financial planning': ['Create a clearer financial routine through regular tracking, planned spending and review of progress toward the stated target.','Improve money habits by recording decisions, checking the budget and making deliberate adjustments each week.','Turn the financial target into practical weekly actions and monitor them consistently.'],
+                nutrition: ['Build sustainable food habits through realistic meal planning, balanced choices and regular tracking of consistency.','Make everyday nutrition more intentional with simple preparation, balanced meals and practical weekly adjustments.','Focus on repeatable eating habits rather than extreme changes, reviewing what works each week.'],
+                wellness: ['Create a steadier wellbeing routine through manageable daily practices, protected rest and regular reflection.','Make room for recovery and mental clarity with consistent habits that can fit around ordinary responsibilities.','Build a sustainable routine around sleep, reflection and small actions that support day-to-day wellbeing.'],
+                'creative practice': ['Develop creative consistency through regular practice, small finished pieces and time to review what is improving.','Make steady progress on the craft by protecting practice time and setting achievable weekly milestones.','Turn creative ambition into a repeatable routine of experimentation, practice and completed work.'],
+                'career development': ['Move toward the professional target through focused skill development, practical output and weekly progress reviews.','Build career momentum with deliberate practice, measurable work and a realistic schedule for improvement.','Translate the career goal into weekly actions that strengthen skills and produce visible progress.'],
+                'relationship building': ['Strengthen important relationships through intentional time, attentive conversations and dependable everyday actions.','Make connection a regular priority with shared activities and more focused, thoughtful communication.','Build a more present routine through planned time together and consistent small gestures.'],
+                recovery: ['Support long-term change with a practical daily plan, awareness of triggers and reliable sources of support.','Maintain momentum through regular check-ins, healthier alternatives and a plan for challenging moments.','Build a steady recovery routine around preparation, reflection and consistent support.'],
+                'daily practice': ['Turn the goal into repeatable actions, measurable weekly steps and regular reviews of what is working.','Build consistency with a realistic routine, clear milestones and room to adjust when circumstances change.','Make progress sustainable through manageable daily actions and honest weekly check-ins.']
+            };
+            const whyBank = {
+                training: ['I want to feel stronger and have the stamina to enjoy everyday activities without getting out of breath.','I am doing this to prove to myself that I can follow a training plan consistently, even when life gets busy.','Better fitness will give me more energy and confidence in the long run.'],
+                'strength training': ['I want to become stronger in a practical way and make exercise a dependable part of my week.','I am working toward better strength and confidence, not a short-lived burst of motivation.','Having a clear routine will help me stay accountable and notice gradual improvements.'],
+                learning: ['I want to make meaningful progress in a skill that matters to my personal and professional plans.','I have postponed this for too long and want to show myself that steady practice can fit into my schedule.','Learning this will open up opportunities and give me confidence in what I can do next.'],
+                'financial planning': ['I want more control over my money and fewer decisions made at the last minute.','A clear routine will help me build security and make progress toward a goal that matters to my family.','I want my financial choices to reflect my priorities rather than impulse.'],
+                nutrition: ['I want more energy throughout the day and food habits that I can maintain beyond this commitment.','I am focusing on consistency so healthy choices become easier in a normal, busy week.','I want to take better care of myself without relying on restrictive short-term fixes.'],
+                wellness: ['I want to feel more balanced and stop treating rest and reflection as optional.','A calmer routine should help me show up better for work and the people around me.','I want to protect a little time each day for habits that make life feel more manageable.'],
+                'creative practice': ['I want to give an important personal interest regular space instead of waiting for the perfect free day.','Finishing small pieces will help me build confidence and develop my creative skills.','I want to make creativity a consistent part of my life rather than an occasional activity.'],
+                'career development': ['I want to take ownership of my development and create opportunities through consistent effort.','This goal gives me a practical way to build skills instead of only thinking about a future change.','I want to become more confident in my work and be able to see evidence of my progress.'],
+                'relationship building': ['I want the people closest to me to feel that I make time for them and listen properly.','Small consistent efforts matter more to me than occasional grand gestures.','I want to be more present and intentional in the relationships that matter.'],
+                recovery: ['I want to build a healthier future and have a clear plan for the moments when staying consistent is difficult.','This commitment is a way to focus on daily choices and make use of support instead of handling everything alone.','I want my actions to reflect the changes I have decided to make.'],
+                'daily practice': ['I want to build trust in myself by following through on a realistic commitment.','I am doing this because small consistent actions can create a meaningful change over time.','I want a routine I can maintain, not another goal I abandon when the initial motivation fades.']
+            };
+            const updateLines = {
+                training: ['I completed the planned session and kept the pace comfortable.','I had less time than expected, so I shortened the session but still got it done.','The session felt steadier today; I am focusing on consistency rather than speed.','I adjusted the plan around my schedule and completed the most important part.','Recovery felt better this week, and I was able to return to the routine.','I missed one planned session, reviewed what got in the way and reset the next workout.'],
+                'strength training': ['I finished the main lifts and paid closer attention to my form.','I kept the weights manageable and completed the planned sets.','The workout was shorter today, but I maintained the routine and logged the session.','I noticed better control on the movements I have been practising.','I took an extra recovery day and returned with a more comfortable session.','One exercise felt difficult, so I reduced the load and focused on technique.'],
+                learning: ['I completed the study block and reviewed the notes from the previous session.','I worked through the difficult section slowly instead of rushing to finish it.','I had a busy day, so I completed a shorter review to keep the habit going.','I practised the new material and noted the areas that still need work.','The weekly review helped me see which topics are becoming clearer.','I fell behind on one lesson and have moved it into the next study session.'],
+                'financial planning': ['I updated the tracker and checked this week’s spending against the plan.','I avoided an unnecessary purchase and moved the amount toward my target.','I reviewed the categories that went over budget and adjusted next week’s plan.','I recorded the latest figures and kept the next step realistic.','A planned expense came up, so I revised the weekly amount rather than abandoning the target.','I completed the weekly money review and identified one change to make next week.'],
+                nutrition: ['I prepared meals ahead of time and found it easier to stick to the plan.','I made a balanced choice while eating out instead of treating the day as a write-off.','The schedule was busy, so I kept meals simple and stayed close to my routine.','I tracked the day honestly and noticed where better preparation would help.','I drank water more consistently and planned tomorrow’s meals in advance.','One meal did not go to plan, but I returned to the routine at the next opportunity.'],
+                wellness: ['I completed the planned routine and gave myself time to wind down.','I kept the practice brief today, which made it easier to fit into the day.','I noticed some stress building up and used the routine before it affected my evening.','I missed the usual time, so I moved the practice later rather than skipping it.','The habit is beginning to feel more natural, especially on busy days.','I needed extra rest today and adjusted the plan without losing sight of the goal.'],
+                'creative practice': ['I spent focused time on the project and completed one small section.','I experimented with a different approach and learned what I want to change next.','I had limited time, so I worked on a smaller task to keep the project moving.','I reviewed the last session and made a clear next step for the work.','I finished a draft and noted a few details to improve in the next session.','I did not finish everything planned, but I made progress on the most important part.'],
+                'career development': ['I completed the planned skill exercise and saved the result for review.','I made progress on a practical task instead of only researching what to do.','A meeting disrupted the schedule, so I moved the focused work to another slot.','I reviewed feedback and identified one specific area to improve.','I completed the weekly milestone and mapped out the next action.','I fell short of the planned time, but finished a smaller task that kept the work moving.'],
+                'relationship building': ['I made time for an uninterrupted conversation and was more present.','We shared a simple activity together, which helped me protect the time I had planned.','The day became busy, so I rescheduled our time instead of letting it disappear.','I followed through on a small commitment and checked in properly.','I listened without multitasking and felt the conversation was more meaningful.','Our plans changed, but I found another way to make time to connect.'],
+                recovery: ['I followed the plan for today and checked in with the support that helps me stay accountable.','A difficult moment came up, so I used the alternative I had prepared.','I reviewed what triggered the urge and made a note of what helped.','Today was challenging, but I focused on the next useful decision rather than the whole journey.','I kept the routine simple and reached out instead of trying to manage the difficult moment alone.','I had a setback in my routine, acknowledged it and returned to the plan.'],
+                'daily practice': ['I completed the main action I had planned and recorded the result.','I had to adjust the timing, but I still made room for the commitment.','The routine felt more manageable today because I prepared in advance.','I made a smaller amount of progress than planned, but kept the habit intact.','I reviewed the week and chose one practical adjustment for the next few days.','I missed part of the plan, identified why and set a realistic next step.']
+            };
+            const obstacles = [
+                'An unexpected work commitment reduced the time available, so I moved the task to the next open slot.',
+                'Low energy made the full plan difficult, so I scaled it down and focused on completing a manageable part.',
+                'A family responsibility changed the schedule; I will plan the next session earlier.',
+                'I underestimated how long the task would take and need to leave more room for it next time.',
+                'The day became busier than expected, so I adjusted the timing rather than dropping the commitment.',
+                'I needed extra recovery time and will return to the regular schedule at the next session.'
+            ];
+            const usedTitles = new Set();
+            const titleSeen = new Map();
+            resolutions.forEach((res, i) => {
+                if (!res) return;
+                const original = String(res.title || 'Personal commitment').trim();
+                const key = clean(original);
+                const duplicate = titleSeen.has(key);
+                titleSeen.set(key, (titleSeen.get(key) || 0) + 1);
+                if (duplicate) {
+                    const activity = activityFor(res);
+                    const options = titleFocus[activity] || titleFocus['daily practice'];
+                    const base = original.replace(/\s*[—–-]\s*\d+\s*[- ]?day(?:s)?\s*commitment\s*$/i, '').trim();
+                    let candidate = '';
+                    for (let n = 0; n < options.length * 3; n++) {
+                        const focus = options[(i + n) % options.length];
+                        candidate = `${base} ${focus}`;
+                        if (res.startDate && res.deadline) {
+                            const days = Math.max(1, Math.round((new Date(res.deadline) - new Date(res.startDate)) / 86400000));
+                            candidate += ` — ${days}-Day Commitment`;
+                        }
+                        const candidateKey = clean(candidate);
+                        if (!usedTitles.has(candidateKey)) break;
+                    }
+                    if (!candidate || usedTitles.has(clean(candidate))) candidate = `${base} — ${String((users.find(u => u.id === res.creatorId) || {}).name || 'Personal')}’s commitment`;
+                    if (candidate !== original) { res.title = candidate; changed = true; }
+                }
+                usedTitles.add(clean(res.title || original));
+            });
+
+            // Replace only repeated descriptions/obstacles; the first occurrence
+            // and all already-distinct user-written reports remain untouched.
+            const seenDescriptions = new Set();
+            const seenObstacles = new Set();
+            resolutions.forEach(res => {
+                const activity = activityFor(res);
+                const lines = updateLines[activity] || updateLines['daily practice'];
+                (Array.isArray(res.updates) ? res.updates : []).forEach((up, idx) => {
+                    if (up.description) {
+                        const key = clean(up.description);
+                        if (seenDescriptions.has(key)) {
+                            const seed = hash(`${res.id}|${up.userId}|${up.date}|${idx}`);
+                            let replacement = lines[seed % lines.length];
+                            let attempt = 0;
+                            while (seenDescriptions.has(clean(replacement)) && attempt < lines.length * 3) {
+                                replacement = lines[(seed + ++attempt) % lines.length] + ` (${String(up.date || '').slice(5) || 'check-in'})`;
+                            }
+                            up.description = replacement;
+                            changed = true;
+                        }
+                        seenDescriptions.add(clean(up.description));
+                    }
+                    if (up.obstacles) {
+                        const key = clean(up.obstacles);
+                        if (seenObstacles.has(key)) {
+                            const seed = hash(`${res.id}|${up.userId}|${up.date}|obstacle`);
+                            let replacement = obstacles[seed % obstacles.length];
+                            let attempt = 0;
+                            while (seenObstacles.has(clean(replacement)) && attempt < obstacles.length * 3) {
+                                replacement = obstacles[(seed + ++attempt) % obstacles.length] + ` (on ${String(up.date || '').slice(5) || 'that day'})`;
+                            }
+                            up.obstacles = replacement;
+                            changed = true;
+                        }
+                        seenObstacles.add(clean(up.obstacles));
+                    }
+                });
+            });
+
+            // Give duplicated pod-level descriptions and motivations distinct,
+            // topic-relevant wording without overwriting unique copy.
+            const seenGoalDescriptions = new Set();
+            const seenWhys = new Set();
+            resolutions.forEach((res, i) => {
+                const activity = activityFor(res);
+                const descs = descriptions[activity] || descriptions['daily practice'];
+                const whys = whyBank[activity] || whyBank['daily practice'];
+                if (res.description) {
+                    const key = clean(res.description);
+                    if (seenGoalDescriptions.has(key)) {
+                        res.description = descs[i % descs.length];
+                        changed = true;
+                    }
+                    seenGoalDescriptions.add(clean(res.description));
+                }
+                if (res.personalWhy) {
+                    const key = clean(res.personalWhy);
+                    if (seenWhys.has(key)) {
+                        res.personalWhy = whys[(i + 1) % whys.length];
+                        changed = true;
+                    }
+                    seenWhys.add(clean(res.personalWhy));
+                }
+            });
+            if (changed) saveToStorage();
         }
 
         function migrateResolutionText() {
