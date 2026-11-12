@@ -353,7 +353,7 @@
                     <a id="new-goal-fb" href="#" target="_blank" class="bg-blue-600 hover:bg-blue-700 py-2.5 rounded-xl text-xs font-semibold text-center text-white transition flex items-center justify-center space-x-1">Facebook</a>
                 </div>
             </div>
-            <button type="button" onclick="closeModal('goal-created-share-modal');" class="text-xs font-semibold text-slate-500 hover:text-slate-900 cursor-pointer pt-2 block mx-auto">Skip</button>
+            <button type="button" onclick="skipGoalSharePrompt()" class="text-xs font-semibold text-slate-500 hover:text-slate-900 cursor-pointer pt-2 block mx-auto">Skip</button>
         </div>
     </div>
 
@@ -635,7 +635,8 @@
                 </div>
                 <div>
                     <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Profile Picture Upload</label>
-                    <input type="file" id="edit-avatar-file" accept="image/*" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-emerald-500">
+                    <input type="file" id="edit-avatar-file" accept="image/*" onchange="startProfilePhotoCrop(this)" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-emerald-500">
+                    <p class="text-xs text-slate-500 mt-2">After selecting a photo, you can zoom and reposition it inside a square crop before saving.</p>
                     <p class="text-xs text-slate-400 mt-1">Recommended size: 400 x 400 pixels (Square, Max 1MB).</p>
                 </div>
                 <div class="flex items-center space-x-2 pt-2">
@@ -1985,6 +1986,7 @@
         }
 
         function triggerGoalCreatedShareModal(resId, title, isJoining = false) {
+            window.currentShareResolutionId = resId;
             // Keep the relevant resolution detail page underneath the share prompt.
             // Skipping the prompt should simply close it, not send the user to the feed.
             switchView('detail', resId);
@@ -1998,6 +2000,32 @@
             document.getElementById('new-goal-tw').href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
             document.getElementById('new-goal-fb').href = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
             lucide.createIcons();
+        }
+
+        function skipGoalSharePrompt() {
+            const targetId = window.currentShareResolutionId;
+            closeModal('goal-created-share-modal');
+            if (targetId && resolutions.some(r => r.id === targetId)) {
+                switchView('detail', targetId);
+            }
+        }
+
+        function openImageLightboxFromElement(img) {
+            if (!img) return;
+            const src = img.currentSrc || img.src;
+            if (!src) return;
+            const modal = document.getElementById('image-lightbox-modal');
+            const image = document.getElementById('image-lightbox-content');
+            image.src = src;
+            modal.classList.remove('hidden');
+            document.body.classList.add('overflow-hidden');
+        }
+
+        function closeImageLightbox() {
+            const modal = document.getElementById('image-lightbox-modal');
+            modal.classList.add('hidden');
+            document.getElementById('image-lightbox-content').src = '';
+            document.body.classList.remove('overflow-hidden');
         }
 
         function copyNewGoalShareText() {
@@ -2514,7 +2542,7 @@
 
             let effectiveDetailCoverImage = (res.coverImage && !res.coverImage.includes('photo-1517838277536-f5f99be501cd')) ? res.coverImage : getResolutionCoverImage(res.category, res.title, res.id);
             let detailCoverHtml = effectiveDetailCoverImage ? 
-                `<div class="h-72 w-full bg-slate-200 overflow-hidden"><img src="${effectiveDetailCoverImage}" class="w-full h-full object-cover"></div>` : 
+                `<div class="h-72 w-full bg-slate-200 overflow-hidden cursor-zoom-in" onclick="openImageLightboxFromElement(this.querySelector('img'))" title="Click to view full-size cover"><img src="${effectiveDetailCoverImage}" class="w-full h-full object-cover"></div>` : 
                 `<div class="h-56 w-full bg-slate-900 flex items-center justify-center text-slate-400 font-bold text-lg tracking-widest">NO COVER</div>`;
 
             let comparisonRowsHtml = res.participants.map((uid, participantIndex) => {
@@ -3237,8 +3265,8 @@
         function handleSaveProfile(e) {
             e.preventDefault();
             const avatarFileInput = document.getElementById('edit-avatar-file');
-            
-            handleImageUpload(avatarFileInput, function(avatarBase64) {
+            const avatarBase64 = window.pendingCroppedAvatar || '';
+            {
                 currentUser.name = document.getElementById('edit-name').value;
                 currentUser.city = document.getElementById('edit-city').value;
                 currentUser.country = document.getElementById('edit-country').value;
@@ -3255,8 +3283,112 @@
                 closeModal('edit-profile-modal');
                 renderAuthNav();
                 renderProfileView();
+                window.pendingCroppedAvatar = '';
+                if (avatarFileInput) avatarFileInput.value = '';
                 alert('Profile updated successfully!');
-            }, 400, 400, 0.9);
+            }
+        }
+
+        let profileCropImage = null;
+        let profileCropZoom = 1;
+        let profileCropOffsetX = 0;
+        let profileCropOffsetY = 0;
+        let profileCropDragging = false;
+        let profileCropLastX = 0;
+        let profileCropLastY = 0;
+        const PROFILE_CROP_SIZE = 320;
+
+        function startProfilePhotoCrop(input) {
+            window.pendingCroppedAvatar = '';
+            const file = input && input.files && input.files[0];
+            if (!file) return;
+            if (!file.type.startsWith('image/')) { alert('Please choose an image file.'); input.value = ''; return; }
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                const img = new Image();
+                img.onload = function() {
+                    profileCropImage = img;
+                    profileCropZoom = 1;
+                    profileCropOffsetX = 0;
+                    profileCropOffsetY = 0;
+                    document.getElementById('profile-photo-zoom').value = '1';
+                    drawProfilePhotoCrop();
+                    document.getElementById('profile-photo-crop-modal').classList.remove('hidden');
+                    document.body.classList.add('overflow-hidden');
+                };
+                img.onerror = function() { alert('This image could not be opened. Please choose another file.'); input.value = ''; };
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function getProfileCropGeometry(outputSize = PROFILE_CROP_SIZE) {
+            const fit = Math.max(PROFILE_CROP_SIZE / profileCropImage.width, PROFILE_CROP_SIZE / profileCropImage.height);
+            const scale = fit * profileCropZoom * (outputSize / PROFILE_CROP_SIZE);
+            const center = outputSize / 2;
+            return { width: profileCropImage.width * scale, height: profileCropImage.height * scale,
+                x: center + profileCropOffsetX * (outputSize / PROFILE_CROP_SIZE) - profileCropImage.width * scale / 2,
+                y: center + profileCropOffsetY * (outputSize / PROFILE_CROP_SIZE) - profileCropImage.height * scale / 2 };
+        }
+
+        function drawProfilePhotoCrop() {
+            if (!profileCropImage) return;
+            const canvas = document.getElementById('profile-photo-crop-canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#e2e8f0'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            const g = getProfileCropGeometry();
+            ctx.save(); ctx.beginPath(); ctx.rect(0, 0, canvas.width, canvas.height); ctx.clip();
+            ctx.drawImage(profileCropImage, g.x, g.y, g.width, g.height); ctx.restore();
+        }
+
+        function updateProfilePhotoZoom(value) {
+            profileCropZoom = Math.max(1, Math.min(3, Number(value) || 1));
+            const g = getProfileCropGeometry();
+            const halfW = Math.max(0, (g.width - PROFILE_CROP_SIZE) / 2);
+            const halfH = Math.max(0, (g.height - PROFILE_CROP_SIZE) / 2);
+            profileCropOffsetX = Math.max(-halfW, Math.min(halfW, profileCropOffsetX));
+            profileCropOffsetY = Math.max(-halfH, Math.min(halfH, profileCropOffsetY));
+            drawProfilePhotoCrop();
+        }
+
+        function beginProfileCropDrag(event) {
+            if (!profileCropImage) return;
+            profileCropDragging = true;
+            profileCropLastX = event.clientX; profileCropLastY = event.clientY;
+            event.currentTarget.setPointerCapture(event.pointerId);
+        }
+        function moveProfileCropDrag(event) {
+            if (!profileCropDragging) return;
+            const rect = event.currentTarget.getBoundingClientRect();
+            const scaleX = PROFILE_CROP_SIZE / rect.width;
+            const scaleY = PROFILE_CROP_SIZE / rect.height;
+            profileCropOffsetX += (event.clientX - profileCropLastX) * scaleX;
+            profileCropOffsetY += (event.clientY - profileCropLastY) * scaleY;
+            profileCropLastX = event.clientX; profileCropLastY = event.clientY;
+            const g = getProfileCropGeometry();
+            profileCropOffsetX = Math.max(-(g.width-PROFILE_CROP_SIZE)/2, Math.min((g.width-PROFILE_CROP_SIZE)/2, profileCropOffsetX));
+            profileCropOffsetY = Math.max(-(g.height-PROFILE_CROP_SIZE)/2, Math.min((g.height-PROFILE_CROP_SIZE)/2, profileCropOffsetY));
+            drawProfilePhotoCrop();
+        }
+        function endProfileCropDrag() { profileCropDragging = false; }
+
+        function confirmProfilePhotoCrop() {
+            if (!profileCropImage) return;
+            const out = document.createElement('canvas'); out.width = 400; out.height = 400;
+            const ctx = out.getContext('2d'); const g = getProfileCropGeometry(400);
+            ctx.drawImage(profileCropImage, g.x, g.y, g.width, g.height);
+            window.pendingCroppedAvatar = out.toDataURL('image/jpeg', 0.9);
+            document.getElementById('profile-photo-crop-modal').classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+            profileCropImage = null;
+        }
+        function cancelProfilePhotoCrop() {
+            window.pendingCroppedAvatar = '';
+            document.getElementById('profile-photo-crop-modal').classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+            profileCropImage = null;
+            const input = document.getElementById('edit-avatar-file'); if (input) input.value = '';
         }
 
         function filterProfileHistory(filter, button) {
@@ -3414,7 +3546,7 @@
                     <div class="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-4">
                         <div class="flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
                             ${profileUser.avatar ? `
-                                <img src="${profileUser.avatar}" class="w-20 h-20 rounded-2xl object-cover shadow-md">
+                                <img src="${profileUser.avatar}" onclick="openImageLightboxFromElement(this)" title="Click to view profile photo" class="w-20 h-20 rounded-2xl object-cover shadow-md cursor-zoom-in">
                             ` : `
                                 <div class="w-20 h-20 rounded-2xl bg-emerald-600 text-white font-extrabold text-3xl flex items-center justify-center shadow-md shadow-emerald-600/30">
                                     ${profileUser.name.charAt(0)}
@@ -3514,5 +3646,33 @@
             lucide.createIcons();
         }
     </script>
+
+    <!-- IMAGE LIGHTBOX -->
+    <div id="image-lightbox-modal" class="fixed inset-0 z-[100] hidden bg-slate-950/90 p-4 sm:p-8 flex items-center justify-center" onclick="closeImageLightbox()">
+        <button type="button" onclick="closeImageLightbox()" class="absolute top-4 right-4 z-10 w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 text-white text-3xl leading-none" aria-label="Close image">×</button>
+        <img id="image-lightbox-content" src="" alt="Expanded image" class="max-w-full max-h-full object-contain rounded-lg shadow-2xl" onclick="event.stopPropagation()">
+    </div>
+
+    <!-- PROFILE PHOTO CROP -->
+    <div id="profile-photo-crop-modal" class="fixed inset-0 z-[90] hidden bg-slate-950/70 backdrop-blur-sm p-4 flex items-center justify-center">
+        <div class="bg-white rounded-3xl p-5 sm:p-6 w-full max-w-md shadow-2xl space-y-4">
+            <div>
+                <h3 class="text-lg font-bold text-slate-900">Crop Profile Photo</h3>
+                <p class="text-xs text-slate-500 mt-1">Drag the image to reposition it. Use the slider to zoom in or out.</p>
+            </div>
+            <div class="flex justify-center">
+                <canvas id="profile-photo-crop-canvas" width="320" height="320" class="w-[min(80vw,320px)] h-[min(80vw,320px)] rounded-2xl border border-slate-200 cursor-move touch-none" onpointerdown="beginProfileCropDrag(event)" onpointermove="moveProfileCropDrag(event)" onpointerup="endProfileCropDrag()" onpointercancel="endProfileCropDrag()"></canvas>
+            </div>
+            <div class="space-y-2">
+                <div class="flex justify-between text-xs font-semibold text-slate-600"><label for="profile-photo-zoom">Zoom</label><span>1× – 3×</span></div>
+                <input id="profile-photo-zoom" type="range" min="1" max="3" step="0.01" value="1" oninput="updateProfilePhotoZoom(this.value)" class="w-full accent-emerald-600">
+            </div>
+            <div class="flex justify-end gap-3 pt-1">
+                <button type="button" onclick="cancelProfilePhotoCrop()" class="px-4 py-2.5 text-xs font-semibold text-slate-600">Cancel</button>
+                <button type="button" onclick="confirmProfilePhotoCrop()" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold">Use This Photo</button>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
