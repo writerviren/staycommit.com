@@ -55,7 +55,7 @@
     <!-- Navigation Header -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-40">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <div class="flex items-center cursor-pointer min-w-0" onclick="switchView('explore')" aria-label="Stay Commit home">
+            <div class="flex items-center cursor-pointer min-w-0" onclick="switchView(currentUser ? 'home' : 'explore')" aria-label="Stay Commit home">
                 <img
                     src="staycommit-logo.png"
                     alt="Stay Commit — Set goals. Stay accountable."
@@ -77,7 +77,21 @@
     </header>
 
     <!-- Main Content Area -->
-    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full">
+        <nav id="primary-app-nav" class="hidden mb-6 bg-white border border-slate-200 rounded-2xl p-1.5 shadow-sm flex gap-1" aria-label="Main navigation">
+            <button type="button" data-app-tab="home" onclick="switchView('home')" class="app-tab flex-1 rounded-xl px-3 py-2.5 text-sm font-semibold">Home</button>
+            <button type="button" data-app-tab="explore" onclick="switchView('explore')" class="app-tab flex-1 rounded-xl px-3 py-2.5 text-sm font-semibold">Discover</button>
+            <button type="button" data-app-tab="my-pods" onclick="switchView('my-pods')" class="app-tab flex-1 rounded-xl px-3 py-2.5 text-sm font-semibold">My Pods</button>
+        </nav>
+        <section id="view-home" class="hidden space-y-5">
+            <div class="flex flex-wrap items-end justify-between gap-3"><div><p class="text-xs font-bold uppercase tracking-wider text-emerald-700">Your accountability circle</p><h2 class="text-2xl font-bold text-slate-900">Home</h2><p class="text-sm text-slate-500 mt-1">Recent progress from pods you joined and people you follow.</p></div><button type="button" onclick="switchView('explore')" class="text-sm font-semibold text-emerald-700 hover:underline">Discover pods</button></div>
+            <div id="home-activity-feed" class="space-y-3"></div>
+        </section>
+        <section id="view-my-pods" class="hidden space-y-5">
+            <div class="flex flex-wrap items-end justify-between gap-3"><div><p class="text-xs font-bold uppercase tracking-wider text-emerald-700">Your commitments</p><h2 class="text-2xl font-bold text-slate-900">My Pods</h2><p class="text-sm text-slate-500 mt-1">Manage the pods you created or joined.</p></div><button type="button" onclick="openModal('create-resolution-modal')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-semibold">Create a pod</button></div>
+            <div class="flex gap-2 flex-wrap"><button class="mypod-filter bg-emerald-100 text-emerald-800 rounded-lg px-3 py-2 text-xs font-semibold" onclick="renderMyPods('all')">All</button><button class="mypod-filter bg-slate-100 text-slate-700 rounded-lg px-3 py-2 text-xs font-semibold" onclick="renderMyPods('created')">Created by me</button><button class="mypod-filter bg-slate-100 text-slate-700 rounded-lg px-3 py-2 text-xs font-semibold" onclick="renderMyPods('joined')">Joined by me</button></div>
+            <div id="my-pods-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+        </section>
         
         <!-- VIEW 1: EXPLORE & FEED -->
         <div id="view-explore" class="space-y-8">
@@ -101,7 +115,7 @@
                         <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
                         <span>Social Accountability & Public Commitment Platform</span>
                     </span>
-                    <h2 class="text-3xl sm:text-5xl font-extrabold tracking-tight leading-tight">
+                    <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight leading-tight">
                         Transform private wishes into <span class="text-emerald-400">public commitments</span>.
                     </h2>
                     <p class="text-slate-300 text-sm sm:text-base leading-relaxed">
@@ -140,9 +154,9 @@
             </div>
 
             <!-- Standard Hero Banner for Logged-In Users -->
-            <div id="user-hero-banner" class="bg-gradient-to-r from-emerald-900 via-emerald-800 to-slate-900 rounded-3xl p-8 sm:p-12 text-white shadow-xl relative overflow-hidden">
+            <div id="user-hero-banner" class="bg-gradient-to-r from-emerald-900 via-emerald-800 to-slate-900 rounded-2xl p-5 sm:p-7 text-white shadow-xl relative overflow-hidden">
                 <div class="absolute right-0 top-0 translate-x-8 -translate-y-8 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
-                <div class="max-w-2xl relative z-10 space-y-4">
+                <div class="max-w-2xl relative z-10 space-y-2">
                     <span class="inline-flex items-center space-x-1.5 py-1 px-3 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                         <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
                         <span>Public Commitment Protocol</span>
@@ -150,16 +164,22 @@
                     <h2 class="text-3xl sm:text-5xl font-extrabold tracking-tight leading-tight">
                         Don't just set goals. <br/><span class="text-emerald-400">Build a record</span> of keeping them.
                     </h2>
-                    <p class="text-slate-300 text-base sm:text-lg">
+                    <p class="text-slate-300 text-sm sm:text-base">
                         Make your resolutions public, join structured accountability pods, compare side-by-side progress, and build verifiable digital reputation.
                     </p>
                     <div class="pt-2 flex flex-wrap gap-3">
-                        <button type="button" onclick="openModal('create-resolution-modal')" class="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold px-6 py-3 rounded-xl transition shadow-lg shadow-emerald-500/30 flex items-center space-x-2 cursor-pointer">
+                        <button type="button" onclick="openModal('create-resolution-modal')" class="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold px-4 py-2 rounded-xl transition shadow-lg shadow-emerald-500/30 flex items-center space-x-2 cursor-pointer">
                             <i data-lucide="sparkles" class="w-4 h-4"></i>
                             <span>Set A New Goal</span>
                         </button>
                     </div>
                 </div>
+            </div>
+
+            <div id="discover-intro" class="space-y-2">
+                <div><p class="text-xs font-bold uppercase tracking-wider text-emerald-700">Find your next commitment</p><h2 class="text-2xl font-bold text-slate-900">Discover Pods</h2><p class="text-sm text-slate-500">Explore active commitments, relevant to your goals and community.</p></div>
+                <div class="flex flex-wrap gap-2 text-xs"><button type="button" onclick="setDiscoverMode('recommended')" class="discover-mode bg-emerald-100 text-emerald-800 rounded-lg px-3 py-2 font-semibold">Recommended</button><button type="button" onclick="setDiscoverMode('trending')" class="discover-mode bg-slate-100 text-slate-700 rounded-lg px-3 py-2 font-semibold">Trending</button><button type="button" onclick="setDiscoverMode('newest')" class="discover-mode bg-slate-100 text-slate-700 rounded-lg px-3 py-2 font-semibold">Recently added</button><button type="button" onclick="setDiscoverMode('all')" class="discover-mode bg-slate-100 text-slate-700 rounded-lg px-3 py-2 font-semibold">All pods</button></div>
+                <div id="recommended-pods-section" class="hidden"><div class="flex items-center justify-between mb-3"><h3 id="discover-mode-heading" class="font-bold text-lg text-slate-900">Recommended for you</h3><span class="text-xs text-slate-400">Based on available activity and interests</span></div><div id="recommended-pods-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div></div>
             </div>
 
             <!-- Filters & Search Toolbar -->
@@ -199,7 +219,7 @@
             <!-- Resolutions Feed Grid -->
             <div>
                 <div class="flex items-center justify-between mb-4">
-                    <h3 class="font-bold text-xl text-slate-900 tracking-tight">Active Public Resolutions</h3>
+                    <h3 class="font-bold text-xl text-slate-900 tracking-tight">All Active Pods</h3>
                     <span id="feed-count" class="text-xs font-semibold text-slate-500 bg-slate-200/70 px-2.5 py-1 rounded-full">0 found</span>
                 </div>
                 <div id="resolutions-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -634,6 +654,22 @@
                     </div>
                 </div>
                 <div>
+                    <label class="block text-xs font-bold uppercase text-slate-600 mb-2">Your interests for pod recommendations</label>
+                    <div id="edit-interests" class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs text-slate-700">
+                        <label class="flex items-center gap-2"><input type="checkbox" value="Health & Fitness" class="edit-interest rounded">Health & Fitness</label>
+                        <label class="flex items-center gap-2"><input type="checkbox" value="Finance" class="edit-interest rounded">Finance</label>
+                        <label class="flex items-center gap-2"><input type="checkbox" value="Learning & Education" class="edit-interest rounded">Learning & Education</label>
+                        <label class="flex items-center gap-2"><input type="checkbox" value="Career" class="edit-interest rounded">Career</label>
+                        <label class="flex items-center gap-2"><input type="checkbox" value="Productivity" class="edit-interest rounded">Productivity</label>
+                        <label class="flex items-center gap-2"><input type="checkbox" value="Addiction" class="edit-interest rounded">Addiction recovery</label>
+                        <label class="flex items-center gap-2"><input type="checkbox" value="Personal Development" class="edit-interest rounded">Personal development</label>
+                        <label class="flex items-center gap-2"><input type="checkbox" value="Skills" class="edit-interest rounded">Skills</label>
+                        <label class="flex items-center gap-2"><input type="checkbox" value="Business" class="edit-interest rounded">Business</label>
+                        <label class="flex items-center gap-2"><input type="checkbox" value="Lifestyle" class="edit-interest rounded">Lifestyle</label>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-1">Choose categories you want to see more often. This is optional and can be changed anytime.</p>
+                </div>
+                <div>
                     <label class="block text-xs font-bold uppercase text-slate-600 mb-2">Current Profile Picture</label>
                     <div class="flex items-center gap-3 mb-3">
                         <img id="edit-avatar-preview" src="" alt="Your current profile photo" onclick="openImageLightboxFromElement(this)" class="hidden w-20 h-20 rounded-2xl object-cover border border-slate-200 shadow-sm cursor-zoom-in" title="Click to view your profile photo larger">
@@ -812,12 +848,15 @@
             checkUrlRefAndScheduleReminders();
             renderAuthNav();
             renderExploreFeed();
+            renderDiscoverRecommendations();
             checkEmailRemindersSimulator();
             
             const urlParams = new URLSearchParams(window.location.search);
             const refResId = urlParams.get('ref_res');
             if (refResId && resolutions.some(r => r.id === refResId)) {
                 switchView('detail', refResId);
+            } else if (currentUser) {
+                switchView('home');
             }
 
             lucide.createIcons();
@@ -1382,39 +1421,136 @@
         }
 
         function switchView(viewName, id = null) {
-            if (viewName === 'detail' && !currentUser) {
-                alert('Please sign in or register to view and participate in resolution journeys.');
-                openAuthModal(false);
-                return;
-            }
-
+            if (viewName === 'detail' && !currentUser) { alert('Please sign in or register to view and participate in resolution journeys.'); openAuthModal(false); return; }
             currentView = viewName;
-            document.getElementById('view-explore').classList.add('hidden');
-            document.getElementById('view-detail').classList.add('hidden');
-            document.getElementById('view-profile').classList.add('hidden');
-            document.getElementById('view-notifications').classList.add('hidden');
-            document.getElementById('view-static').classList.add('hidden');
+            ['view-explore','view-home','view-my-pods','view-detail','view-profile','view-notifications','view-static'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
+            const nav = document.getElementById('primary-app-nav');
+            if (nav) nav.classList.toggle('hidden', !currentUser || !['home','explore','my-pods'].includes(viewName));
+            if (viewName === 'explore') { document.getElementById('view-explore').classList.remove('hidden'); renderExploreFeed(); renderDiscoverRecommendations(); }
+            else if (viewName === 'home') { document.getElementById('view-home').classList.remove('hidden'); renderHomeActivity(); }
+            else if (viewName === 'my-pods') { document.getElementById('view-my-pods').classList.remove('hidden'); renderMyPods('all'); }
+            else if (viewName === 'detail' && id) { activeDetailId=id; journeyTimelineFilter='all'; calendarWidgetOpen=false; document.getElementById('view-detail').classList.remove('hidden'); renderResolutionDetail(id); }
+            else if (viewName === 'profile') { document.getElementById('view-profile').classList.remove('hidden'); renderProfileView(); }
+            else if (viewName === 'notifications') { document.getElementById('view-notifications').classList.remove('hidden'); renderNotificationsView(); }
+            else if (viewName === 'static') document.getElementById('view-static').classList.remove('hidden');
+            document.querySelectorAll('.app-tab').forEach(btn => { const active=btn.dataset.appTab===viewName; btn.className='app-tab flex-1 rounded-xl px-3 py-2.5 text-sm font-semibold '+(active?'bg-emerald-600 text-white shadow-sm':'text-slate-600 hover:bg-slate-100'); });
+            window.scrollTo({top:0,behavior:'smooth'}); lucide.createIcons();
+        }
 
-            if (viewName === 'explore') {
-                document.getElementById('view-explore').classList.remove('hidden');
-                renderExploreFeed();
-            } else if (viewName === 'detail' && id) {
-                activeDetailId = id;
-                journeyTimelineFilter = 'all';
-                calendarWidgetOpen = false;
-                document.getElementById('view-detail').classList.remove('hidden');
-                renderResolutionDetail(id);
-            } else if (viewName === 'profile') {
-                document.getElementById('view-profile').classList.remove('hidden');
-                renderProfileView();
-            } else if (viewName === 'notifications') {
-                document.getElementById('view-notifications').classList.remove('hidden');
-                renderNotificationsView();
-            } else if (viewName === 'static') {
-                document.getElementById('view-static').classList.remove('hidden');
-            }
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-            lucide.createIcons();
+        let discoverMode = 'recommended';
+        let myPodsMode = 'all';
+        function podIsVisibleToUser(res) {
+            if (!res || !Array.isArray(res.participants)) return false;
+            if (res.isHidden && (!currentUser || currentUser.id !== res.creatorId)) return false;
+            if (res.isPodHiddenOnly && (!currentUser || (currentUser.id !== res.creatorId && !res.participants.includes(currentUser.id)))) return false;
+            if (currentUser && (res.blockedUsers || []).includes(currentUser.id) && res.creatorId !== currentUser.id) return false;
+            return true;
+        }
+        function getPodActivity(res) {
+            const updates=Array.isArray(res.updates)?res.updates:[];
+            const recent=updates.filter(u => { const d=new Date(u.date || u.createdAt || 0); return !isNaN(d) && (Date.now()-d.getTime()) < 14*86400000; });
+            const activeMembers=new Set(recent.map(u=>u.userId)).size;
+            return {updates:updates.length,recent:recent.length,activeMembers,last:recent.length?Math.max(...recent.map(u=>new Date(u.date || u.createdAt || 0).getTime())):new Date(res.createdAt||0).getTime()};
+        }
+        function getPodRecommendation(res) {
+            const joined=res.participants.includes(currentUser?.id);
+            const mine=res.creatorId===currentUser?.id;
+            if (!currentUser || !podIsVisibleToUser(res) || mine || joined || res.deadline < new Date().toISOString().slice(0,10) || res.participants.length >= (Number(res.participantLimit)||999999)) return null;
+            const followed=currentUser.following||[];
+            const followedCreator=followed.includes(res.creatorId);
+            const activity=getPodActivity(res);
+            const profileText=[currentUser.profession,currentUser.bio].filter(Boolean).join(' ').toLowerCase();
+            const interests=Array.isArray(currentUser.interests)?currentUser.interests:[];
+            const categoryMatch=interests.some(x=>String(x).toLowerCase()===String(res.category||'').toLowerCase());
+            const pastCats=resolutions.filter(r=>r.creatorId===currentUser.id||r.participants.includes(currentUser.id)).map(r=>r.category);
+            const historyMatch=pastCats.includes(res.category);
+            const descriptionMatch=profileText && (profileText.includes(String(res.category||'').toLowerCase()) || profileText.split(/\W+/).some(w=>w.length>4 && String(res.description||'').toLowerCase().includes(w)));
+            const daysOld=Math.max(0,(Date.now()-new Date(res.createdAt||Date.now()).getTime())/86400000);
+            const recency=Math.max(0,1-daysOld/45);
+            const activityScore=Math.min(1,activity.recent/8)*0.65+Math.min(1,activity.activeMembers/5)*0.35;
+            const score=(categoryMatch?30:0)+(historyMatch?18:0)+(descriptionMatch?8:0)+(followedCreator?15:0)+(activityScore*15)+(recency*9)+(Math.min(1,res.participants.length/Math.max(1,Number(res.participantLimit)||10))*5);
+            const reason=categoryMatch?'Matches an interest you selected':followedCreator?'Created by someone you follow':historyMatch?'Related to pods you have joined':activity.recent>0?'Recently active members':daysOld<10?'Recently created':'A relevant active commitment';
+            return {score,reason,activity};
+        }
+        function podCardHtml(res, reason='') {
+            const creator=users.find(u=>u.id===res.creatorId)||{name:res.creatorName||'Community member',avatar:''};
+            const count=res.participants?.length||0; const limit=Number(res.participantLimit)||999999;
+            const cover=(res.coverImage && !res.coverImage.includes('photo-1517838277536-f5f99be501cd'))?res.coverImage:getResolutionCoverImage(res.category,res.title,res.id);
+            return `<article class="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-md transition"><div class="h-28 bg-slate-100 overflow-hidden cursor-pointer" onclick="switchView('detail','${res.id}')">${cover?`<img src="${cover}" class="w-full h-full object-cover" alt="">`:''}</div><div class="p-4 space-y-2"><div class="flex justify-between gap-2"><span class="text-[11px] rounded-full bg-emerald-50 text-emerald-700 px-2 py-1 font-semibold">${res.category||'Personal growth'}</span><span class="text-xs text-slate-500">${count}/${limit===999999?'∞':limit} members</span></div><h3 onclick="switchView('detail','${res.id}')" class="font-bold text-slate-900 cursor-pointer hover:text-emerald-700">${res.title}</h3><p class="text-xs text-slate-500 line-clamp-2">${res.description||'A shared commitment with measurable progress.'}</p>${reason?`<p class="text-[11px] text-emerald-700 font-semibold">${reason}</p>`:''}<div class="flex items-center justify-between pt-2 border-t border-slate-100"><span class="text-xs text-slate-500">By ${creator.name}</span><button onclick="switchView('detail','${res.id}')" class="text-xs font-bold text-emerald-700">View pod →</button></div></div></article>`;
+        }
+        function setDiscoverMode(mode) { discoverMode=mode; renderDiscoverRecommendations(); document.querySelectorAll('.discover-mode').forEach(b=>{const active=b.textContent.toLowerCase().includes(mode==='newest'?'recently':mode);b.className='discover-mode rounded-lg px-3 py-2 font-semibold '+(active?'bg-emerald-100 text-emerald-800':'bg-slate-100 text-slate-700');}); }
+        function renderDiscoverRecommendations() {
+            const section=document.getElementById('recommended-pods-section'); if(!section)return;
+            const eligible=resolutions.map(r=>({res:r,rec:getPodRecommendation(r)})).filter(x=>x.rec);
+            let ordered=eligible.sort((a,b)=>b.rec.score-a.rec.score);
+            let heading='Recommended for you';
+            if(discoverMode==='trending'){ordered.sort((a,b)=>(b.rec.activity.recent*3+b.rec.activity.activeMembers)-(a.rec.activity.recent*3+a.rec.activity.activeMembers));heading='Trending pods';}
+            if(discoverMode==='newest'){ordered.sort((a,b)=>new Date(b.res.createdAt||0)-new Date(a.res.createdAt||0));heading='Recently added';}
+            if(discoverMode==='all'){section.classList.add('hidden');return;}
+            section.classList.remove('hidden'); document.getElementById('discover-mode-heading').textContent=heading;
+            document.getElementById('recommended-pods-grid').innerHTML=ordered.slice(0,6).map(x=>podCardHtml(x.res,discoverMode==='recommended'?x.rec.reason:discoverMode==='trending'?'Active community discussion':'Newly created pod')).join('')||'<p class="text-sm text-slate-500 py-5">No matching active pods yet. Try another category or check back as new pods are created.</p>';
+        }
+        function renderHomeActivity() {
+            const el = document.getElementById('home-activity-feed');
+            if (!el || !currentUser) return;
+
+            // Use the pod membership record as the primary feed scope. A member
+            // should see every participant's public update in each pod they
+            // created or joined, not only updates from followed accounts.
+            const myId = String(currentUser.id);
+            const followed = new Set((Array.isArray(currentUser.following) ? currentUser.following : []).map(String));
+            const items = [];
+
+            (Array.isArray(resolutions) ? resolutions : []).forEach(res => {
+                if (!res || !podIsVisibleToUser(res)) return;
+                const participantIds = Array.isArray(res.participants)
+                    ? res.participants.map(member => String(member && typeof member === 'object' ? (member.userId || member.id || '') : member))
+                    : [];
+                const isMember = participantIds.includes(myId) || String(res.creatorId || '') === myId;
+                const updates = Array.isArray(res.updates) ? res.updates : [];
+
+                updates.forEach((update, index) => {
+                    if (!update) return;
+                    const authorId = String(update.userId || update.memberId || update.participantId || '');
+                    // Joined/created pod activity is always included. Outside
+                    // those pods, only updates by followed members are included.
+                    if (!isMember && (!authorId || !followed.has(authorId))) return;
+                    const timestamp = update.createdAt || update.date || update.timestamp || '';
+                    items.push({ res, update, authorId, timestamp, index });
+                });
+            });
+
+            items.sort((a, b) => {
+                const ta = Date.parse(a.timestamp) || 0;
+                const tb = Date.parse(b.timestamp) || 0;
+                return tb - ta || b.index - a.index;
+            });
+
+            el.innerHTML = items.slice(0, 30).map(({ res, update, authorId }) => {
+                const author = users.find(user => String(user.id) === authorId) || {
+                    name: update.userName || 'A member', avatar: ''
+                };
+                const displayName = author.name || update.userName || 'A member';
+                const avatar = author.avatar || '';
+                const initial = String(displayName).trim().charAt(0).toUpperCase() || 'M';
+                const dateLabel = update.date || (update.createdAt ? new Date(update.createdAt).toLocaleDateString() : '');
+                return `<article class="bg-white border border-slate-200 rounded-2xl p-4 flex gap-3">
+                    <div class="w-10 h-10 rounded-full bg-emerald-100 overflow-hidden flex-shrink-0">${avatar ? `<img src="${avatar}" class="w-full h-full object-cover" alt="">` : `<span class="flex w-full h-full items-center justify-center font-bold text-emerald-700">${initial}</span>`}</div>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex flex-wrap justify-between gap-1"><p class="text-sm"><strong>${displayName}</strong> shared progress in <button onclick="switchView('detail','${res.id}')" class="font-semibold text-emerald-700 hover:underline">${res.title || 'Untitled pod'}</button></p><span class="text-[11px] text-slate-400">${dateLabel}</span></div>
+                        <p class="text-sm text-slate-700 mt-2">${update.description || 'Posted a progress update.'}</p>
+                        ${update.numericalProgress ? `<p class="text-xs text-emerald-700 mt-1">Progress: ${update.numericalProgress}</p>` : ''}
+                        ${update.obstacles ? `<p class="text-xs text-slate-500 mt-1">Challenge: ${update.obstacles}</p>` : ''}
+                        <button onclick="switchView('detail','${res.id}')" class="text-xs font-semibold text-emerald-700 mt-2">View journey and comments →</button>
+                    </div>
+                </article>`;
+            }).join('') || `<div class="bg-white border border-dashed border-slate-300 rounded-2xl p-10 text-center"><p class="font-semibold text-slate-800">Your feed is getting started</p><p class="text-sm text-slate-500 mt-1">Progress updates from members of your pods will appear here. Join a pod or follow members to expand your feed.</p><button onclick="switchView('explore')" class="mt-4 bg-emerald-600 text-white rounded-xl px-4 py-2 text-sm font-semibold">Discover pods</button></div>`;
+        }
+        function renderMyPods(mode='all') {
+            myPodsMode=mode; const el=document.getElementById('my-pods-grid'); if(!el||!currentUser)return;
+            document.querySelectorAll('.mypod-filter').forEach(b=>{const active=b.textContent.toLowerCase().includes(mode==='created'?'created':mode==='joined'?'joined':'all');b.className='mypod-filter rounded-lg px-3 py-2 text-xs font-semibold '+(active?'bg-emerald-100 text-emerald-800':'bg-slate-100 text-slate-700');});
+            const mine=resolutions.filter(r=>r.creatorId===currentUser.id||r.participants.includes(currentUser.id)).filter(r=>mode==='all'||(mode==='created'?r.creatorId===currentUser.id:(r.creatorId!==currentUser.id&&r.participants.includes(currentUser.id))));
+            el.innerHTML=mine.sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0)).map(r=>podCardHtml(r,r.creatorId===currentUser.id?'Created by you':'You joined')).join('')||'<p class="text-sm text-slate-500 py-8">No pods in this section yet.</p>';
         }
 
         function renderAuthNav() {
@@ -1423,6 +1559,7 @@
             const userHero = document.getElementById('user-hero-banner');
 
             if (currentUser) {
+                document.getElementById('primary-app-nav')?.classList.remove('hidden');
                 if (guestBanner) guestBanner.classList.add('hidden');
                 if (userHero) userHero.classList.remove('hidden');
 
@@ -1443,6 +1580,7 @@
                     <button type="button" onclick="logout()" class="text-xs font-semibold text-slate-500 hover:text-rose-600 px-2 py-1 transition cursor-pointer">Logout</button>
                 `;
             } else {
+                document.getElementById('primary-app-nav')?.classList.add('hidden');
                 if (guestBanner) guestBanner.classList.remove('hidden');
                 if (userHero) userHero.classList.add('hidden');
 
@@ -1548,7 +1686,7 @@
             closeModal('auth-modal');
             renderAuthNav();
             alert(`Successfully signed in with ${provider.toUpperCase()}!`);
-            if (currentView === 'explore') renderExploreFeed();
+            switchView('home');
         }
 
         function handleAuthSubmit(e) {
@@ -1579,8 +1717,8 @@
                 closeModal('auth-modal');
                 renderAuthNav();
                 alert('OTP Verified Successfully! Welcome to Stay Commit.');
+                switchView('home');
                 if (isNewUser) triggerFirstLoginPopup();
-                if (currentView === 'explore') renderExploreFeed();
                 return;
             }
 
@@ -3274,6 +3412,7 @@
             document.getElementById('edit-age').value = currentUser.age || '';
             document.getElementById('edit-gender').value = currentUser.gender || '';
             document.getElementById('edit-profession').value = currentUser.profession || '';
+            document.querySelectorAll('.edit-interest').forEach(cb => cb.checked = (currentUser.interests || []).includes(cb.value));
             document.getElementById('edit-hide-follows').checked = currentUser.hideFollows || false;
             const avatarPreview = document.getElementById('edit-avatar-preview');
             const avatarPlaceholder = document.getElementById('edit-avatar-placeholder');
@@ -3303,6 +3442,7 @@
                 currentUser.age = document.getElementById('edit-age').value;
                 currentUser.gender = document.getElementById('edit-gender').value;
                 currentUser.profession = document.getElementById('edit-profession').value;
+                currentUser.interests = Array.from(document.querySelectorAll('.edit-interest:checked')).map(cb => cb.value);
                 if (avatarBase64) currentUser.avatar = avatarBase64;
                 currentUser.hideFollows = document.getElementById('edit-hide-follows').checked;
 
