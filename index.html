@@ -634,7 +634,13 @@
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Profile Picture Upload</label>
+                    <label class="block text-xs font-bold uppercase text-slate-600 mb-2">Current Profile Picture</label>
+                    <div class="flex items-center gap-3 mb-3">
+                        <img id="edit-avatar-preview" src="" alt="Your current profile photo" onclick="openImageLightboxFromElement(this)" class="hidden w-20 h-20 rounded-2xl object-cover border border-slate-200 shadow-sm cursor-zoom-in" title="Click to view your profile photo larger">
+                        <div id="edit-avatar-placeholder" class="w-20 h-20 rounded-2xl bg-emerald-100 text-emerald-700 font-bold text-2xl flex items-center justify-center">?</div>
+                        <p class="text-xs text-slate-500">Click your photo to see it larger. You can replace it below.</p>
+                    </div>
+                    <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Change Profile Picture</label>
                     <input type="file" id="edit-avatar-file" accept="image/*" onchange="startProfilePhotoCrop(this)" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:outline-none focus:border-emerald-500">
                     <p class="text-xs text-slate-500 mt-2">After selecting a photo, you can zoom and reposition it inside a square crop before saving.</p>
                     <p class="text-xs text-slate-400 mt-1">Recommended size: 400 x 400 pixels (Square, Max 1MB).</p>
@@ -2010,21 +2016,31 @@
             }
         }
 
-        function openImageLightboxFromElement(img) {
-            if (!img) return;
-            const src = img.currentSrc || img.src;
+        function openImageLightbox(src) {
             if (!src) return;
             const modal = document.getElementById('image-lightbox-modal');
             const image = document.getElementById('image-lightbox-content');
+            if (!modal || !image) return;
             image.src = src;
             modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+            modal.style.visibility = 'visible';
+            modal.style.opacity = '1';
             document.body.classList.add('overflow-hidden');
+        }
+
+        function openImageLightboxFromElement(img) {
+            if (!img) return;
+            openImageLightbox(img.currentSrc || img.src || img.getAttribute('src'));
         }
 
         function closeImageLightbox() {
             const modal = document.getElementById('image-lightbox-modal');
+            if (!modal) return;
+            modal.style.display = 'none';
             modal.classList.add('hidden');
-            document.getElementById('image-lightbox-content').src = '';
+            const image = document.getElementById('image-lightbox-content');
+            if (image) image.src = '';
             document.body.classList.remove('overflow-hidden');
         }
 
@@ -2542,7 +2558,7 @@
 
             let effectiveDetailCoverImage = (res.coverImage && !res.coverImage.includes('photo-1517838277536-f5f99be501cd')) ? res.coverImage : getResolutionCoverImage(res.category, res.title, res.id);
             let detailCoverHtml = effectiveDetailCoverImage ? 
-                `<div class="h-72 w-full bg-slate-200 overflow-hidden cursor-zoom-in" onclick="openImageLightboxFromElement(this.querySelector('img'))" title="Click to view full-size cover"><img src="${effectiveDetailCoverImage}" class="w-full h-full object-cover"></div>` : 
+                `<div class="h-72 w-full bg-slate-200 overflow-hidden cursor-zoom-in" role="button" tabindex="0" onclick="event.stopPropagation(); openImageLightbox(this.querySelector('img').currentSrc || this.querySelector('img').src)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openImageLightbox(this.querySelector('img').src)}" title="Click to view full-size cover"><img src="${effectiveDetailCoverImage}" class="w-full h-full object-cover pointer-events-none" alt="Pod cover image"></div>` : 
                 `<div class="h-56 w-full bg-slate-900 flex items-center justify-center text-slate-400 font-bold text-lg tracking-widest">NO COVER</div>`;
 
             let comparisonRowsHtml = res.participants.map((uid, participantIndex) => {
@@ -3259,6 +3275,20 @@
             document.getElementById('edit-gender').value = currentUser.gender || '';
             document.getElementById('edit-profession').value = currentUser.profession || '';
             document.getElementById('edit-hide-follows').checked = currentUser.hideFollows || false;
+            const avatarPreview = document.getElementById('edit-avatar-preview');
+            const avatarPlaceholder = document.getElementById('edit-avatar-placeholder');
+            if (avatarPreview && currentUser.avatar) {
+                avatarPreview.src = currentUser.avatar;
+                avatarPreview.classList.remove('hidden');
+                if (avatarPlaceholder) avatarPlaceholder.classList.add('hidden');
+            } else if (avatarPreview) {
+                avatarPreview.src = '';
+                avatarPreview.classList.add('hidden');
+                if (avatarPlaceholder) {
+                    avatarPlaceholder.textContent = (currentUser.name || '?').charAt(0).toUpperCase();
+                    avatarPlaceholder.classList.remove('hidden');
+                }
+            }
             openModal('edit-profile-modal');
         }
 
@@ -3313,7 +3343,10 @@
                     profileCropOffsetY = 0;
                     document.getElementById('profile-photo-zoom').value = '1';
                     drawProfilePhotoCrop();
-                    document.getElementById('profile-photo-crop-modal').classList.remove('hidden');
+                    const cropModal = document.getElementById('profile-photo-crop-modal');
+                    cropModal.classList.remove('hidden');
+                    cropModal.style.display = 'flex';
+                    cropModal.style.visibility = 'visible';
                     document.body.classList.add('overflow-hidden');
                 };
                 img.onerror = function() { alert('This image could not be opened. Please choose another file.'); input.value = ''; };
@@ -3380,12 +3413,18 @@
             ctx.drawImage(profileCropImage, g.x, g.y, g.width, g.height);
             window.pendingCroppedAvatar = out.toDataURL('image/jpeg', 0.9);
             document.getElementById('profile-photo-crop-modal').classList.add('hidden');
+            document.getElementById('profile-photo-crop-modal').style.display = 'none';
             document.body.classList.remove('overflow-hidden');
+            const avatarPreview = document.getElementById('edit-avatar-preview');
+            const avatarPlaceholder = document.getElementById('edit-avatar-placeholder');
+            if (avatarPreview) { avatarPreview.src = window.pendingCroppedAvatar; avatarPreview.classList.remove('hidden'); }
+            if (avatarPlaceholder) avatarPlaceholder.classList.add('hidden');
             profileCropImage = null;
         }
         function cancelProfilePhotoCrop() {
             window.pendingCroppedAvatar = '';
             document.getElementById('profile-photo-crop-modal').classList.add('hidden');
+            document.getElementById('profile-photo-crop-modal').style.display = 'none';
             document.body.classList.remove('overflow-hidden');
             profileCropImage = null;
             const input = document.getElementById('edit-avatar-file'); if (input) input.value = '';
@@ -3546,7 +3585,7 @@
                     <div class="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-4">
                         <div class="flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
                             ${profileUser.avatar ? `
-                                <img src="${profileUser.avatar}" onclick="openImageLightboxFromElement(this)" title="Click to view profile photo" class="w-20 h-20 rounded-2xl object-cover shadow-md cursor-zoom-in">
+                                <img src="${profileUser.avatar}" onclick="event.stopPropagation(); openImageLightbox(this.currentSrc || this.src)" title="Click to view profile photo" alt="${profileUser.name} profile photo" class="w-20 h-20 rounded-2xl object-cover shadow-md cursor-zoom-in">
                             ` : `
                                 <div class="w-20 h-20 rounded-2xl bg-emerald-600 text-white font-extrabold text-3xl flex items-center justify-center shadow-md shadow-emerald-600/30">
                                     ${profileUser.name.charAt(0)}
@@ -3648,13 +3687,13 @@
     </script>
 
     <!-- IMAGE LIGHTBOX -->
-    <div id="image-lightbox-modal" class="fixed inset-0 z-[100] hidden bg-slate-950/90 p-4 sm:p-8 flex items-center justify-center" onclick="closeImageLightbox()">
+    <div id="image-lightbox-modal" style="display:none" class="fixed inset-0 z-[100] hidden bg-slate-950/90 p-4 sm:p-8 flex items-center justify-center" onclick="closeImageLightbox()">
         <button type="button" onclick="closeImageLightbox()" class="absolute top-4 right-4 z-10 w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 text-white text-3xl leading-none" aria-label="Close image">×</button>
         <img id="image-lightbox-content" src="" alt="Expanded image" class="max-w-full max-h-full object-contain rounded-lg shadow-2xl" onclick="event.stopPropagation()">
     </div>
 
     <!-- PROFILE PHOTO CROP -->
-    <div id="profile-photo-crop-modal" class="fixed inset-0 z-[90] hidden bg-slate-950/70 backdrop-blur-sm p-4 flex items-center justify-center">
+    <div id="profile-photo-crop-modal" style="display:none" class="fixed inset-0 z-[110] hidden bg-slate-950/70 backdrop-blur-sm p-4 flex items-center justify-center">
         <div class="bg-white rounded-3xl p-5 sm:p-6 w-full max-w-md shadow-2xl space-y-4">
             <div>
                 <h3 class="text-lg font-bold text-slate-900">Crop Profile Photo</h3>
