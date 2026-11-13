@@ -89,7 +89,7 @@
         </section>
         <section id="view-my-pods" class="hidden space-y-5">
             <div class="flex flex-wrap items-end justify-between gap-3"><div><p class="text-xs font-bold uppercase tracking-wider text-emerald-700">Your commitments</p><h2 class="text-2xl font-bold text-slate-900">My Pods</h2><p class="text-sm text-slate-500 mt-1">Manage the pods you created or joined.</p></div><button type="button" onclick="openModal('create-resolution-modal')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-semibold">Create a pod</button></div>
-            <div class="flex gap-2 flex-wrap"><button class="mypod-filter bg-emerald-100 text-emerald-800 rounded-lg px-3 py-2 text-xs font-semibold" onclick="renderMyPods('all')">All</button><button class="mypod-filter bg-slate-100 text-slate-700 rounded-lg px-3 py-2 text-xs font-semibold" onclick="renderMyPods('created')">Created by me</button><button class="mypod-filter bg-slate-100 text-slate-700 rounded-lg px-3 py-2 text-xs font-semibold" onclick="renderMyPods('joined')">Joined by me</button></div>
+            <div class="flex gap-2 flex-wrap"><button class="mypod-filter bg-emerald-100 text-emerald-800 rounded-lg px-3 py-2 text-xs font-semibold" onclick="renderMyPods('all')">All</button><button class="mypod-filter bg-slate-100 text-slate-700 rounded-lg px-3 py-2 text-xs font-semibold" onclick="renderMyPods('created')">Created by You</button><button class="mypod-filter bg-slate-100 text-slate-700 rounded-lg px-3 py-2 text-xs font-semibold" onclick="renderMyPods('joined')">Joined by You</button></div>
             <div id="my-pods-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div>
         </section>
         
@@ -1552,7 +1552,7 @@
             myPodsMode=mode; const el=document.getElementById('my-pods-grid'); if(!el||!currentUser)return;
             document.querySelectorAll('.mypod-filter').forEach(b=>{const active=b.textContent.toLowerCase().includes(mode==='created'?'created':mode==='joined'?'joined':'all');b.className='mypod-filter rounded-lg px-3 py-2 text-xs font-semibold '+(active?'bg-emerald-100 text-emerald-800':'bg-slate-100 text-slate-700');});
             const mine=resolutions.filter(r=>r.creatorId===currentUser.id||r.participants.includes(currentUser.id)).filter(r=>mode==='all'||(mode==='created'?r.creatorId===currentUser.id:(r.creatorId!==currentUser.id&&r.participants.includes(currentUser.id))));
-            el.innerHTML=mine.sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0)).map(r=>podCardHtml(r,r.creatorId===currentUser.id?'Created by you':'You joined')).join('')||'<p class="text-sm text-slate-500 py-8">No pods in this section yet.</p>';
+            el.innerHTML=mine.sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0)).map(r=>podCardHtml(r,r.creatorId===currentUser.id?'Created by You':'Joined by You')).join('')||'<p class="text-sm text-slate-500 py-8">No pods in this section yet.</p>';
         }
 
         function renderAuthNav() {
@@ -3782,8 +3782,8 @@
                         ${isSelf ? `
                             <div class="flex flex-wrap gap-2" id="profile-history-filters">
                                 <button type="button" data-history-filter="all" onclick="filterProfileHistory('all', this)" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-white">All (${combinedItems.length})</button>
-                                <button type="button" data-history-filter="created" onclick="filterProfileHistory('created', this)" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">Created by you (${combinedItems.filter(i => i.historyType === 'created').length})</button>
-                                <button type="button" data-history-filter="joined" onclick="filterProfileHistory('joined', this)" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">You Joined (${combinedItems.filter(i => i.historyType === 'joined').length})</button>
+                                <button type="button" data-history-filter="created" onclick="filterProfileHistory('created', this)" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200" >Created by You (${combinedItems.filter(i => i.historyType === 'created').length})</button>
+                                <button type="button" data-history-filter="joined" onclick="filterProfileHistory('joined', this)" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">Joined by You (${combinedItems.filter(i => i.historyType === 'joined').length})</button>
                             </div>
                         ` : ''}
                     </div>
@@ -3805,7 +3805,7 @@
                                         <div class="flex items-center justify-between">
                                             <div class="flex flex-wrap items-center gap-1.5">
                                                 <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700">${item.category}</span>
-                                                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${item.historyType === 'created' ? 'bg-indigo-50 text-indigo-700' : 'bg-sky-50 text-sky-700'}">${item.historyType === 'created' ? 'Created by you' : 'You joined'}</span>
+                                                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${item.historyType === 'created' ? 'bg-indigo-50 text-indigo-700' : 'bg-sky-50 text-sky-700'}">${item.historyType === 'created' ? 'Created by You' : 'Joined by You'}</span>
                                             </div>
                                             <div class="flex items-center space-x-2">
                                                 <span class="text-xs font-semibold px-2 py-0.5 rounded ${badgeColor}">${displayStatusText}</span>${item.isSnapshot ? '<span class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">Past Pod Archive</span>' : ''}
