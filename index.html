@@ -841,6 +841,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             ensureDemoAccountRegistry();
             purgeDemoUserResolutions();
+            seedBuiltInDemoPods();
             renderDemoAccountPicker();
             migrateResolutionCovers();
             migrateResolutionText();
@@ -939,6 +940,56 @@
             localStorage.setItem('cc_resolutions', JSON.stringify(resolutions));
             if (Array.isArray(notifications)) localStorage.setItem('cc_notifications', JSON.stringify(notifications));
             localStorage.setItem(VERSION, 'done');
+        }
+
+        // Add a small, curated demo dataset after the legacy demo-pod cleanup.
+        // This is intentionally limited to 12 pods and runs once per browser profile.
+        function seedBuiltInDemoPods() {
+            const SEED_KEY = 'staycommit_builtin_demo_pods_v1';
+            if (localStorage.getItem(SEED_KEY) === 'done') return;
+            const demoIds = ['user_1','user_2','user_3','user_4','user_5','user_google_demo','user_fb_demo'];
+            const demoUsers = users.filter(u => demoIds.includes(String(u.id)));
+            if (demoUsers.length < 5) return;
+            const byId = id => users.find(u => String(u.id) === id) || {name:'Community member'};
+            const today = new Date();
+            const date = (offset) => { const d = new Date(today); d.setDate(d.getDate()+offset); return d.toISOString().slice(0,10); };
+            const specs = [
+                ['A 30-Minute Walk Before Work','fitness','Build a dependable morning walking habit before the workday begins. Members are tracking consistency, energy and the routes that help them stay on course.','user_1',['user_1','user_3','user_5'],'1.5 km','30 minutes','personal routine'],
+                ['Cook at Home Four Nights a Week','food','Make weeknight meals easier by planning simple recipes and preparing food at home four evenings each week.','user_2',['user_2','user_1','user_4'],'1 night','4 nights','better health'],
+                ['Read 20 Pages Every Evening','study','Create a realistic evening reading routine and record the books, ideas and small milestones along the way.','user_3',['user_3','user_1','user_google_demo'],'5 pages','20 pages','learning consistently'],
+                ['Build a Three-Month Emergency Fund','finance','Set aside a manageable amount each month and build a financial buffer with regular check-ins.','user_4',['user_4','user_2','user_fb_demo'],'$100','3 months of expenses','financial security'],
+                ['Publish One Creative Piece Each Week','creativity','Finish and share one small creative project every week, from sketches and photography to writing.','user_5',['user_5','user_3','user_google_demo'],'0 pieces','1 each week','make time to create'],
+                ['Practice Spanish for 15 Minutes Daily','study','Use short daily practice sessions to improve vocabulary, listening and confidence in conversation.','user_google_demo',['user_google_demo','user_1','user_4'],'5 minutes','15 minutes','travel and connection'],
+                ['A Consistent Bedtime Routine','mindfulness','Wind down without screens, keep a steady bedtime and notice how the routine affects rest and focus.','user_fb_demo',['user_fb_demo','user_2','user_5'],'irregular','11:00 pm target','more energy'],
+                ['Strength Training Three Times a Week','fitness','Follow a balanced strength routine with recovery days and gradual, sustainable progress.','user_1',['user_1','user_2','user_fb_demo'],'1 session','3 sessions weekly','long-term fitness'],
+                ['Plan the Week Every Sunday','productivity','Spend a short session reviewing priorities, scheduling focused work and choosing the week’s most important tasks.','user_2',['user_2','user_3','user_google_demo'],'no routine','weekly plan','less reactive days'],
+                ['Volunteer Twice a Month','community','Make time for local community work and record the activities, hours and people helped.','user_3',['user_3','user_4','user_5'],'0 hours','2 visits monthly','give back locally'],
+                ['Spend an Hour Outdoors Each Weekend','outdoors','Protect one hour each weekend for a walk, a trail or time outside, and share places worth exploring.','user_4',['user_4','user_1','user_fb_demo'],'0 hours','1 hour weekly','reset and recharge'],
+                ['Complete a 30-Day No-Spend Challenge','finance','Pause non-essential purchases for 30 days, track spending triggers and redirect the savings toward a chosen goal.','user_5',['user_5','user_2','user_google_demo'],'starting point','30 days','spend intentionally']
+            ];
+            const seeded = specs.map((x,i) => {
+                const [title,category,description,creatorId,participants,startingMetric,targetMetric,personalWhy]=x;
+                const creator=byId(creatorId);
+                const start=date(-Math.min(12,i+2));
+                const deadline=date(28+(i%4)*7);
+                const memberDates={}; const statuses={}; const frequencies={}; const reminders={}; const privateNotes={};
+                participants.forEach((id,j)=>{memberDates[id]=date(-Math.min(10,j+i+1));statuses[id]='ongoing';frequencies[id]='weekly';reminders[id]=true;privateNotes[id]='';});
+                const updates=[];
+                if (i%3!==1) {
+                    const authorId=participants[(i+1)%participants.length];
+                    const author=byId(authorId);
+                    updates.push({id:'demo_update_'+(i+1),userId:authorId,userName:author.name,date:date(-1-(i%5)),createdAt:new Date(today.getTime()-(1+(i%5))*86400000).toISOString(),description:[
+                        'Kept the plan manageable and completed the session I had scheduled.',
+                        'Made progress by preparing ahead instead of relying on motivation.',
+                        'A busy day changed the timing, but I still completed a smaller version of the goal.',
+                        'Reviewed the week and adjusted the next step to make it more realistic.'
+                    ][i%4],numericalProgress:i%2===0?'One step completed':'On track',obstacles:i%4===2?'Time was limited this week.':'',comments:[]});
+                }
+                return {id:'demo_pod_'+String(i+1).padStart(2,'0'),creatorId,creatorName:creator.name,title,category,description,startDate:start,deadline,reportingFrequency:'weekly',emailReminders:true,startingMetric,targetMetric,personalWhy,coverImage:getResolutionCoverImage(category,title,'demo_pod_'+(i+1)),participantLimit:10,participants:[...new Set(participants)],participantJoinDates:memberDates,participantStatuses:statuses,participantFrequencies:frequencies,participantReminders:reminders,participantPrivateNotes:privateNotes,participantHistoricalSnapshots:{},blockedUsers:[],status:'ongoing',isHidden:false,isPodHiddenOnly:false,createdAt:new Date(today.getTime()-(i+2)*86400000).toISOString(),updates,comments:[]};
+            });
+            resolutions = [...seeded, ...(Array.isArray(resolutions)?resolutions:[])];
+            saveToStorage();
+            localStorage.setItem(SEED_KEY,'done');
         }
 
         function escapeDemoHtml(value) {
@@ -1432,6 +1483,10 @@
                 btn.classList.toggle('shadow-sm', active);
                 btn.classList.toggle('text-slate-600', !active);
                 btn.classList.toggle('hover:bg-slate-100', !active);
+                btn.setAttribute('aria-current', active ? 'page' : 'false');
+                btn.style.backgroundColor = active ? '#059669' : 'transparent';
+                btn.style.color = active ? '#ffffff' : '#475569';
+                btn.style.boxShadow = active ? '0 1px 2px rgba(0,0,0,.08)' : 'none';
             });
             ['view-explore','view-home','view-my-pods','view-detail','view-profile','view-notifications','view-static'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
             const nav = document.getElementById('primary-app-nav');
