@@ -26,7 +26,10 @@
     </script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-<style>@media(max-width:640px){.progress-report-table thead{display:none}.progress-report-table,.progress-report-table tbody{display:block;width:100%}.progress-report-table tr.hidden{display:none!important}.progress-report-table tr{display:block;margin:0 0 12px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:14px;background:#fff}.progress-report-table td{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;width:100%;padding:8px 0;border-bottom:1px solid #f1f5f9;text-align:right}.progress-report-table td:last-child{border-bottom:0}.progress-report-table td:before{content:attr(data-label);color:#64748b;font-size:11px;font-weight:700;text-align:left;flex:0 0 38%}.progress-report-table td[data-label="Participant"]{display:block;text-align:left}.progress-report-table td[data-label="Participant"]:before{display:block;margin-bottom:6px}#resolution-detail-container .overflow-x-auto{overflow:visible}}
+<style>
+        #primary-app-nav .app-tab[aria-current="page"] { background-color:#059669 !important; color:#fff !important; box-shadow:0 1px 2px rgba(0,0,0,.08) !important; }
+        #primary-app-nav .app-tab[aria-current="false"] { background-color:transparent !important; color:#475569 !important; box-shadow:none !important; }
+@media(max-width:640px){.progress-report-table thead{display:none}.progress-report-table,.progress-report-table tbody{display:block;width:100%}.progress-report-table tr.hidden{display:none!important}.progress-report-table tr{display:block;margin:0 0 12px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:14px;background:#fff}.progress-report-table td{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;width:100%;padding:8px 0;border-bottom:1px solid #f1f5f9;text-align:right}.progress-report-table td:last-child{border-bottom:0}.progress-report-table td:before{content:attr(data-label);color:#64748b;font-size:11px;font-weight:700;text-align:left;flex:0 0 38%}.progress-report-table td[data-label="Participant"]{display:block;text-align:left}.progress-report-table td[data-label="Participant"]:before{display:block;margin-bottom:6px}#resolution-detail-container .overflow-x-auto{overflow:visible}}
 @media(max-width:640px){
   #top-notification-banner{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;padding:10px 12px;font-size:11px;line-height:1.45}
   #top-notification-banner>span{flex:1 1 100%;text-align:center}
@@ -848,6 +851,7 @@
             // Demo-content rewriting is intentionally disabled; only demo-created pods are purged.
             checkUrlRefAndScheduleReminders();
             renderAuthNav();
+            syncPrimaryAppTab(currentUser ? 'home' : 'explore');
             renderExploreFeed();
             renderDiscoverRecommendations();
             checkEmailRemindersSimulator();
@@ -945,8 +949,10 @@
         // Add a small, curated demo dataset after the legacy demo-pod cleanup.
         // This is intentionally limited to 12 pods and runs once per browser profile.
         function seedBuiltInDemoPods() {
-            const SEED_KEY = 'staycommit_builtin_demo_pods_v1';
-            if (localStorage.getItem(SEED_KEY) === 'done') return;
+            // Idempotent repair: check on every startup and restore only missing demo pods.
+            // This also repairs browsers where an earlier build wrote the seed flag
+            // without successfully retaining the pod records.
+            const SEED_KEY = 'staycommit_builtin_demo_pods_v2';
             const demoIds = ['user_1','user_2','user_3','user_4','user_5','user_google_demo','user_fb_demo'];
             const demoUsers = users.filter(u => demoIds.includes(String(u.id)));
             if (demoUsers.length < 5) return;
@@ -967,7 +973,8 @@
                 ['Spend an Hour Outdoors Each Weekend','outdoors','Protect one hour each weekend for a walk, a trail or time outside, and share places worth exploring.','user_4',['user_4','user_1','user_fb_demo'],'0 hours','1 hour weekly','reset and recharge'],
                 ['Complete a 30-Day No-Spend Challenge','finance','Pause non-essential purchases for 30 days, track spending triggers and redirect the savings toward a chosen goal.','user_5',['user_5','user_2','user_google_demo'],'starting point','30 days','spend intentionally']
             ];
-            const seeded = specs.map((x,i) => {
+            const existingIds = new Set((Array.isArray(resolutions) ? resolutions : []).map(r => String(r && r.id || '')));
+            const seeded = specs.map((x,i) => ({x,i})).filter(({i}) => !existingIds.has('demo_pod_'+String(i+1).padStart(2,'0'))).map(({x,i}) => {
                 const [title,category,description,creatorId,participants,startingMetric,targetMetric,personalWhy]=x;
                 const creator=byId(creatorId);
                 const start=date(-Math.min(12,i+2));
@@ -987,8 +994,11 @@
                 }
                 return {id:'demo_pod_'+String(i+1).padStart(2,'0'),creatorId,creatorName:creator.name,title,category,description,startDate:start,deadline,reportingFrequency:'weekly',emailReminders:true,startingMetric,targetMetric,personalWhy,coverImage:getResolutionCoverImage(category,title,'demo_pod_'+(i+1)),participantLimit:10,participants:[...new Set(participants)],participantJoinDates:memberDates,participantStatuses:statuses,participantFrequencies:frequencies,participantReminders:reminders,participantPrivateNotes:privateNotes,participantHistoricalSnapshots:{},blockedUsers:[],status:'ongoing',isHidden:false,isPodHiddenOnly:false,createdAt:new Date(today.getTime()-(i+2)*86400000).toISOString(),updates,comments:[]};
             });
-            resolutions = [...seeded, ...(Array.isArray(resolutions)?resolutions:[])];
-            saveToStorage();
+            if (seeded.length) {
+                resolutions = [...seeded, ...(Array.isArray(resolutions)?resolutions:[])];
+                saveToStorage();
+            }
+            // Keep the legacy key only as an informational marker; never use it to skip repair.
             localStorage.setItem(SEED_KEY,'done');
         }
 
@@ -1471,23 +1481,27 @@
             renderAuthNav();
         }
 
-        function switchView(viewName, id = null) {
-            if (viewName === 'detail' && !currentUser) { alert('Please sign in or register to view and participate in resolution journeys.'); openAuthModal(false); return; }
-            currentView = viewName;
-            // Update the selected tab immediately, before rendering the destination view.
-            // This keeps the green active state correct even if a view renderer encounters bad data.
+        function syncPrimaryAppTab(viewName) {
             document.querySelectorAll('#primary-app-nav .app-tab').forEach(btn => {
-                const active = btn.dataset.appTab === viewName;
+                const active = btn.getAttribute('data-app-tab') === viewName;
+                btn.setAttribute('aria-current', active ? 'page' : 'false');
                 btn.classList.toggle('bg-emerald-600', active);
                 btn.classList.toggle('text-white', active);
                 btn.classList.toggle('shadow-sm', active);
                 btn.classList.toggle('text-slate-600', !active);
                 btn.classList.toggle('hover:bg-slate-100', !active);
-                btn.setAttribute('aria-current', active ? 'page' : 'false');
-                btn.style.backgroundColor = active ? '#059669' : 'transparent';
-                btn.style.color = active ? '#ffffff' : '#475569';
-                btn.style.boxShadow = active ? '0 1px 2px rgba(0,0,0,.08)' : 'none';
+                btn.style.setProperty('background-color', active ? '#059669' : 'transparent', 'important');
+                btn.style.setProperty('color', active ? '#ffffff' : '#475569', 'important');
+                btn.style.setProperty('box-shadow', active ? '0 1px 2px rgba(0,0,0,.08)' : 'none', 'important');
             });
+        }
+
+        function switchView(viewName, id = null) {
+            if (viewName === 'detail' && !currentUser) { alert('Please sign in or register to view and participate in resolution journeys.'); openAuthModal(false); return; }
+            currentView = viewName;
+            // Update the selected tab immediately, before rendering the destination view.
+            // This keeps the green active state correct even if a view renderer encounters bad data.
+            syncPrimaryAppTab(viewName);
             ['view-explore','view-home','view-my-pods','view-detail','view-profile','view-notifications','view-static'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
             const nav = document.getElementById('primary-app-nav');
             if (nav) nav.classList.toggle('hidden', !currentUser || !['home','explore','my-pods'].includes(viewName));
