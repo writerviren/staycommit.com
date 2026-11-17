@@ -1006,31 +1006,51 @@
         // Keep built-in demo pod categories identical to the selectable categories.
         // This migration only touches the 12 known demo pod IDs; user-created pods are untouched.
         function migrateBuiltInDemoPodCategories() {
+            // Normalize both the current 12 seeded records and older demo records already
+            // saved in this browser. Older builds used informal labels such as Food and
+            // mindfulness, and some records have IDs other than demo_pod_01...demo_pod_12.
             const categoryByDemoPodId = {
-                demo_pod_01: 'Health & Fitness',
-                demo_pod_02: 'Health & Fitness',
-                demo_pod_03: 'Learning & Education',
-                demo_pod_04: 'Finance',
-                demo_pod_05: 'Skills',
-                demo_pod_06: 'Learning & Education',
-                demo_pod_07: 'Personal Development',
-                demo_pod_08: 'Health & Fitness',
-                demo_pod_09: 'Productivity',
-                demo_pod_10: 'Lifestyle',
-                demo_pod_11: 'Health & Fitness',
-                demo_pod_12: 'Finance'
+                demo_pod_01: 'Health & Fitness', demo_pod_02: 'Health & Fitness',
+                demo_pod_03: 'Learning & Education', demo_pod_04: 'Finance',
+                demo_pod_05: 'Skills', demo_pod_06: 'Learning & Education',
+                demo_pod_07: 'Personal Development', demo_pod_08: 'Health & Fitness',
+                demo_pod_09: 'Productivity', demo_pod_10: 'Lifestyle',
+                demo_pod_11: 'Health & Fitness', demo_pod_12: 'Finance'
             };
             const approved = new Set([
                 'Health & Fitness', 'Finance', 'Learning & Education', 'Career',
                 'Productivity', 'Addiction', 'Personal Development', 'Skills', 'Business', 'Lifestyle'
             ]);
+            const aliases = {
+                'food': 'Health & Fitness', 'nutrition': 'Health & Fitness', 'wellness': 'Health & Fitness',
+                'fitness': 'Health & Fitness', 'exercise': 'Health & Fitness', 'health': 'Health & Fitness',
+                'mindfulness': 'Personal Development', 'meditation': 'Personal Development',
+                'personal growth': 'Personal Development', 'self improvement': 'Personal Development',
+                'self-development': 'Personal Development', 'reading': 'Learning & Education',
+                'study': 'Learning & Education', 'education': 'Learning & Education', 'language learning': 'Learning & Education',
+                'creativity': 'Skills', 'creative': 'Skills', 'writing': 'Skills', 'art': 'Skills',
+                'saving': 'Finance', 'money': 'Finance', 'financial': 'Finance',
+                'work': 'Career', 'professional development': 'Career',
+                'habits': 'Personal Development', 'organization': 'Productivity',
+                'community': 'Lifestyle', 'volunteering': 'Lifestyle', 'travel': 'Lifestyle',
+                'addiction recovery': 'Addiction'
+            };
+            const demoUserIds = new Set(['user_1','user_2','user_3','user_4','user_5','user_google_demo','user_fb_demo']);
             let changed = false;
             (Array.isArray(resolutions) ? resolutions : []).forEach(res => {
-                if (!res || !Object.prototype.hasOwnProperty.call(categoryByDemoPodId, String(res.id))) return;
-                const canonical = categoryByDemoPodId[String(res.id)];
-                if (res.category !== canonical || !approved.has(res.category)) {
-                    res.category = canonical;
-                    changed = true;
+                if (!res) return;
+                const isKnownSeed = Object.prototype.hasOwnProperty.call(categoryByDemoPodId, String(res.id));
+                const isBuiltInDemoPod = isKnownSeed || demoUserIds.has(String(res.creatorId || '')) || res.isDemo === true;
+                if (!isBuiltInDemoPod) return;
+                const raw = String(res.category || '').trim();
+                const normalized = raw.toLowerCase();
+                const canonical = categoryByDemoPodId[String(res.id)] || (approved.has(raw) ? raw : aliases[normalized]);
+                if (!canonical) return;
+                if (res.category !== canonical) { res.category = canonical; changed = true; }
+                if (res.participantHistoricalSnapshots && typeof res.participantHistoricalSnapshots === 'object') {
+                    Object.values(res.participantHistoricalSnapshots).forEach(snapshot => {
+                        if (snapshot && snapshot.category !== canonical) { snapshot.category = canonical; changed = true; }
+                    });
                 }
             });
             if (changed) saveToStorage();
